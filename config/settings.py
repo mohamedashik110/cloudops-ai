@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     "users",
     "monitoring",
     "automation",
+    "cloud_accounts",
 ]
 # -------------------------------------------------------------------
 # Django REST Framework + JWT
@@ -189,3 +190,17 @@ MEDIA_ROOT = BASE_DIR / "media"
 # -------------------------------------------------------------------
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
+AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
+# -------------------------------------------------------------------
+# Celery
+# -------------------------------------------------------------------
+
+CELERY_BROKER_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+CELERY_RESULT_BACKEND = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = "Asia/Kolkata"
