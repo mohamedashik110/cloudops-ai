@@ -44,11 +44,16 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
 
+     # Third-party
+    "rest_framework",
+    "rest_framework_simplejwt",
+    
     # Local Apps
     "users",
     "monitoring",
     "automation",
     "cloud_accounts",
+    "analytics",
 ]
 # -------------------------------------------------------------------
 # Django REST Framework + JWT
@@ -204,3 +209,14 @@ CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = "Asia/Kolkata"
+
+# -------------------------------------------------------------------
+# Cache (Redis)
+# -------------------------------------------------------------------
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": os.getenv("REDIS_URL", "redis://localhost:6379/0"),
+    }
+}
