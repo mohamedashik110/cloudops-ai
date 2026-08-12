@@ -54,6 +54,8 @@ INSTALLED_APPS = [
     "automation",
     "cloud_accounts",
     "analytics",
+    "ml_engine",
+
 ]
 # -------------------------------------------------------------------
 # Django REST Framework + JWT
