@@ -7,4 +7,5 @@ urlpatterns = [
     path("api/v1/", include("cloud_accounts.urls")),
     path("api/v1/", include("analytics.urls")),
     path("api/v1/", include("ml_engine.urls")),
+    path("api/v1/", include("ai_copilot.urls")),
 ]

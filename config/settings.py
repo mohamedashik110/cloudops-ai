@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     "cloud_accounts",
     "analytics",
     "ml_engine",
+     "ai_copilot",
 
 ]
 # -------------------------------------------------------------------
