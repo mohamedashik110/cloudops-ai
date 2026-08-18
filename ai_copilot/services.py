@@ -25,6 +25,14 @@ def ask_copilot(organization, question, days=90):
     data and to explicitly say when it lacks information, rather than
     guessing or inventing numbers.
     """
+    if organization is None:
+        return {
+            "answer": "This account is not linked to an organization, so I "
+                       "don't have any cost data to reference. Please contact "
+                       "an administrator to set up your organization.",
+            "sources": {},
+        }
+
     summary = get_cost_summary(organization, days=days)
 
     if summary["total_cost"] == 0:
