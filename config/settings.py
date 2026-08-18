@@ -223,3 +223,28 @@ CACHES = {
         "LOCATION": os.getenv("REDIS_URL", "redis://localhost:6379/0"),
     }
 }
+
+# -------------------------------------------------------------------
+# Logging (production error visibility)
+# -------------------------------------------------------------------
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "WARNING",
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+    },
+}
