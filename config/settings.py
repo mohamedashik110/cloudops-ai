@@ -29,7 +29,7 @@ DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 ALLOWED_HOSTS = [
     "127.0.0.1",
     "localhost",
-    "54.174.165.23",
+    "54.237.33.88",
 ]
 # -------------------------------------------------------------------
 # Installed Apps
