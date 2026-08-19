@@ -21,17 +21,15 @@ class MLForecastTestCase(TestCase):
         self.cloud_account = CloudAccount.objects.create(
             organization=self.org,
             name="ML Test Account",
-            aws_access_key_id="fake",
-            aws_secret_access_key="fake",
+            role_arn="arn:aws:iam::123456789012:role/TestRole",
         )
 
-        # create 40 days of cost data - enough to train a model
         today = date.today()
         for i in range(40):
             CostRecord.objects.create(
                 cloud_account=self.cloud_account,
                 service="Amazon EC2",
-                amount=50 + (i % 7) * 5,  # some variance
+                amount=50 + (i % 7) * 5,
                 date=today - timedelta(days=39 - i),
                 is_synthetic=True,
             )
@@ -62,7 +60,6 @@ class MLForecastTestCase(TestCase):
         self.assertEqual(len(response.data), 1)
 
     def test_insufficient_data_returns_400(self):
-        # new org with no cost data at all
         empty_org = Organization.objects.create(name="Empty Org")
         empty_user = User.objects.create_user(
             username="empty_org_user",

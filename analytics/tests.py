@@ -21,8 +21,7 @@ class AnalyticsTestCase(TestCase):
         self.cloud_account = CloudAccount.objects.create(
             organization=self.org,
             name="Test Account",
-            aws_access_key_id="fake",
-            aws_secret_access_key="fake",
+            role_arn="arn:aws:iam::123456789012:role/TestRole",
         )
         CostRecord.objects.create(
             cloud_account=self.cloud_account,

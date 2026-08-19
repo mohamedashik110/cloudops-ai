@@ -27,8 +27,7 @@ class CloudAccountsRBACTestCase(TestCase):
         self.cloud_account = CloudAccount.objects.create(
             organization=self.org,
             name="Test Cloud Account",
-            aws_access_key_id="fake",
-            aws_secret_access_key="fake",
+            role_arn="arn:aws:iam::123456789012:role/TestRole",
         )
         CostRecord.objects.create(
             cloud_account=self.cloud_account,
@@ -57,8 +56,7 @@ class CloudAccountsRBACTestCase(TestCase):
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
         response = self.client.post("/api/v1/cloud-accounts/", {
             "name": "Blocked Account",
-            "aws_access_key_id": "fake",
-            "aws_secret_access_key": "fake",
+            "role_arn": "arn:aws:iam::123456789012:role/BlockedRole",
             "aws_region": "us-east-1",
         }, format="json")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
@@ -68,8 +66,7 @@ class CloudAccountsRBACTestCase(TestCase):
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
         response = self.client.post("/api/v1/cloud-accounts/", {
             "name": "Allowed Account",
-            "aws_access_key_id": "fake",
-            "aws_secret_access_key": "fake",
+            "role_arn": "arn:aws:iam::123456789012:role/AllowedRole",
             "aws_region": "us-east-1",
         }, format="json")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -86,4 +83,4 @@ class CloudAccountsRBACTestCase(TestCase):
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
         response = self.client.get("/api/v1/cost-records/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 0)  # should see NO records from Test Org 2
+        self.assertEqual(len(response.data), 0)
