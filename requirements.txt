@@ -18,3 +18,4 @@ pytest-django>=4.8
 black>=24.4
 google-genai
 gunicorn
+django-cors-headers
