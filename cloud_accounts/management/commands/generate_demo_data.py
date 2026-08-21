@@ -37,8 +37,7 @@ class Command(BaseCommand):
             organization=org,
             name="Demo AWS Account",
             defaults={
-                "aws_access_key_id": "demo-key",
-                "aws_secret_access_key": "demo-secret",
+                "role_arn": "arn:aws:iam::000000000000:role/DemoRole",
                 "aws_region": "us-east-1",
                 "status": CloudAccount.Status.CONNECTED,
             },
@@ -49,9 +48,8 @@ class Command(BaseCommand):
 
         for day_offset in range(days):
             current_date = today - timedelta(days=day_offset)
-            # simulate gradual growth over time + weekly seasonality
             growth_factor = 1 + (days - day_offset) / days * 0.3
-            weekday_factor = 0.7 if current_date.weekday() >= 5 else 1.0  # lower cost on weekends
+            weekday_factor = 0.7 if current_date.weekday() >= 5 else 1.0
 
             for service_name, low, high in SERVICES:
                 base_amount = random.uniform(low, high)
