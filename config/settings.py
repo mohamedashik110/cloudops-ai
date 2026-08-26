@@ -30,6 +30,7 @@ ALLOWED_HOSTS = [
     "127.0.0.1",
     "localhost",
     "54.237.33.88",
+    "cloudops-ai.duckdns.org",
 ]
 # -------------------------------------------------------------------
 # Installed Apps
