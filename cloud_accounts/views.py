@@ -6,7 +6,11 @@ from common.permissions import IsOrgManagerOrAdmin
 
 class CloudAccountListCreateView(generics.ListCreateAPIView):
     serializer_class = CloudAccountSerializer
-    permission_classes = [permissions.IsAuthenticated, IsOrgManagerOrAdmin]
+
+    def get_permissions(self):
+        if self.request.method == "POST":
+            return [permissions.IsAuthenticated(), IsOrgManagerOrAdmin()]
+        return [permissions.IsAuthenticated()]
 
     def get_queryset(self):
         return CloudAccount.objects.filter(organization=self.request.user.organization)
