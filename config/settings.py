@@ -91,7 +91,9 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5173",
     "http://cloudops-ai.duckdns.org",
 ]
-
+CSRF_TRUSTED_ORIGINS = [
+    "https://cloudops-ai.duckdns.org",
+]
 # -------------------------------------------------------------------
 # Middleware
 # -------------------------------------------------------------------
