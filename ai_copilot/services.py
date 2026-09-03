@@ -22,9 +22,7 @@ from ml_engine.services import generate_forecast
 def ask_copilot(organization, question, days=90):
     """
     Answers a natural-language question about cloud costs, grounded in
-    real CostRecord data AND the ML cost forecast. The LLM is instructed
-    to ONLY use the provided data and to explicitly say when it lacks
-    information, rather than guessing or inventing numbers.
+    real CostRecord data AND the ML cost forecast.
     """
     if organization is None:
         return {
@@ -36,18 +34,17 @@ def ask_copilot(organization, question, days=90):
 
     summary = get_cost_summary(organization, days=days)
 
-    # Try to include a forecast too - this lets the Copilot answer
-    # forward-looking questions ("what will we spend next month?"),
-    # not just historical ones. If there isn't enough data yet to
-    # forecast, we just skip it gracefully rather than failing.
     forecast_context = "No forecast is available (not enough historical data yet)."
     forecast_data = None
     try:
         forecast_data = generate_forecast(organization, days_ahead=30)
+        predicted = forecast_data["predicted_total"]
+        mae = forecast_data["model_confidence"]["mae"]
+        based_on = forecast_data["model_confidence"]["based_on_days"]
         forecast_context = (
-            f"Predicted total for next 30 days: \ "
-            f"(model average error: \ per day, "
-            f"based on {forecast_data['model_confidence']['based_on_days']} days of history)."
+            f"Predicted total for next 30 days: {predicted} USD "
+            f"(model average error: {mae} USD per day, "
+            f"based on {based_on} days of history)."
         )
     except ValueError:
         pass
@@ -71,7 +68,7 @@ never make up your own prediction.
 {context_note}
 
 HISTORICAL COST DATA (last {days} days):
-- Total cost: \
+- Total cost: {summary['total_cost']} USD
 - Top services by cost: {summary['top_services']}
 - Daily trend (last 10 days shown): {summary['trend'][-10:]}
 
