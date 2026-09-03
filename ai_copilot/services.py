@@ -16,14 +16,15 @@ def test_llm_connection():
 
 
 from analytics.services import get_cost_summary
+from ml_engine.services import generate_forecast
 
 
 def ask_copilot(organization, question, days=90):
     """
     Answers a natural-language question about cloud costs, grounded in
-    real CostRecord data. The LLM is instructed to ONLY use the provided
-    data and to explicitly say when it lacks information, rather than
-    guessing or inventing numbers.
+    real CostRecord data AND the ML cost forecast. The LLM is instructed
+    to ONLY use the provided data and to explicitly say when it lacks
+    information, rather than guessing or inventing numbers.
     """
     if organization is None:
         return {
@@ -35,10 +36,26 @@ def ask_copilot(organization, question, days=90):
 
     summary = get_cost_summary(organization, days=days)
 
+    # Try to include a forecast too - this lets the Copilot answer
+    # forward-looking questions ("what will we spend next month?"),
+    # not just historical ones. If there isn't enough data yet to
+    # forecast, we just skip it gracefully rather than failing.
+    forecast_context = "No forecast is available (not enough historical data yet)."
+    forecast_data = None
+    try:
+        forecast_data = generate_forecast(organization, days_ahead=30)
+        forecast_context = (
+            f"Predicted total for next 30 days: \ "
+            f"(model average error: \ per day, "
+            f"based on {forecast_data['model_confidence']['based_on_days']} days of history)."
+        )
+    except ValueError:
+        pass
+
     if summary["total_cost"] == 0:
         context_note = (
-            "IMPORTANT: There is no cost data available for this period. "
-            "You MUST tell the user no data is available rather than "
+            "IMPORTANT: There is no historical cost data available for this "
+            "period. You MUST tell the user no data is available rather than "
             "guessing or inventing any numbers."
         )
     else:
@@ -47,14 +64,19 @@ def ask_copilot(organization, question, days=90):
     prompt = f"""You are a cloud cost analysis assistant. Answer the user's
 question using ONLY the data provided below. Do not invent, estimate, or
 assume any numbers that are not explicitly present in this data. If the
-data does not contain enough information to answer, say so clearly.
+data does not contain enough information to answer, say so clearly. This
+includes forecast questions - only cite the forecast number given below,
+never make up your own prediction.
 
 {context_note}
 
-COST DATA (last {days} days):
-- Total cost: ${summary['total_cost']}
+HISTORICAL COST DATA (last {days} days):
+- Total cost: \
 - Top services by cost: {summary['top_services']}
 - Daily trend (last 10 days shown): {summary['trend'][-10:]}
+
+FORECAST DATA:
+{forecast_context}
 
 USER QUESTION: {question}
 
@@ -66,11 +88,16 @@ Answer in 2-4 sentences, citing specific numbers from the data above.
         contents=prompt,
     )
 
+    sources = {
+        "total_cost": summary["total_cost"],
+        "top_services": summary["top_services"],
+        "period": summary["period"],
+    }
+    if forecast_data:
+        sources["forecast_predicted_total"] = forecast_data["predicted_total"]
+        sources["forecast_mae"] = forecast_data["model_confidence"]["mae"]
+
     return {
         "answer": response.text,
-        "sources": {
-            "total_cost": summary["total_cost"],
-            "top_services": summary["top_services"],
-            "period": summary["period"],
-        },
+        "sources": sources,
     }
