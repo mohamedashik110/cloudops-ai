@@ -1,5 +1,6 @@
 ﻿import os
 import json
+import re
 from google import genai
 
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
@@ -9,11 +10,6 @@ def route_question(question):
     """
     Agent 1 (Router): decides what data is needed to answer the question.
     Returns a dict like {"needs_historical": true, "needs_forecast": false}.
-
-    This is a genuine agent step - a small, focused LLM call whose only
-    job is classification/planning, not answering. Separating this from
-    the actual answer generation is what makes this multi-agent rather
-    than a single monolithic prompt.
     """
     prompt = f"""You are a routing assistant. Given a user's question about
 cloud costs, decide what data categories are needed to answer it.
@@ -34,9 +30,6 @@ USER QUESTION: {question}
     )
 
     text = response.text.strip()
-
-    # Strip markdown code fences if the model added them anyway,
-    # without relying on backtick characters in this source file.
     fence = chr(96) * 3
     if text.startswith(fence):
         text = text.strip(fence).replace("json", "", 1).strip()
@@ -48,18 +41,12 @@ USER QUESTION: {question}
             "needs_forecast": bool(decision.get("needs_forecast", False)),
         }
     except json.JSONDecodeError:
-        # If routing fails for any reason, default to fetching both -
-        # safer to over-provide grounding data than under-provide it.
         return {"needs_historical": True, "needs_forecast": True}
 
 
 def draft_answer(question, historical_data, forecast_data):
     """
-    Agent 2 (Analyst): drafts an answer using ONLY the data provided by
-    the router-directed retrieval step. This agent's only job is
-    generating a natural-language answer, nothing else - it does not
-    decide what data to fetch (that was Agent 1) and it does not
-    self-verify (that's Agent 3).
+    Agent 2 (Analyst): drafts an answer using ONLY the data provided.
     """
     historical_section = "Not retrieved (not needed for this question)."
     if historical_data:
@@ -78,8 +65,10 @@ def draft_answer(question, historical_data, forecast_data):
         )
 
     prompt = f"""You are a cloud cost analyst. Answer the user's question
-using ONLY the data below. Never invent numbers not present here. If the
-available data does not answer the question, say so plainly.
+using ONLY the data below. Never invent numbers not present here. Do not
+use comma thousands-separators in numbers you write (write 4287.98, not
+4,287.98) so your figures can be verified exactly against source data.
+If the available data does not answer the question, say so plainly.
 
 HISTORICAL DATA: {historical_section}
 
@@ -100,29 +89,48 @@ Answer in 2-4 sentences, citing specific numbers from the data above.
 def verify_answer(draft, historical_data, forecast_data):
     """
     Agent 3 (Verifier): checks the drafted answer against the real source
-    data and flags it if the draft appears to cite a number that does not
-    actually appear anywhere in the retrieved data. This is a genuine,
-    separate hallucination check performed AFTER generation, not just
-    prompt instructions hoping the model behaves - a real defense in depth.
+    data. Numbers are compared after normalizing formatting differences
+    (commas, trailing zeros) so legitimate correct figures aren't
+    incorrectly flagged just because of cosmetic formatting.
     """
     known_numbers = set()
 
+    def normalize(value):
+        try:
+            return round(float(str(value).replace(",", "")), 2)
+        except (ValueError, TypeError):
+            return None
+
     if historical_data:
-        known_numbers.add(str(historical_data["total_cost"]))
+        n = normalize(historical_data["total_cost"])
+        if n is not None:
+            known_numbers.add(n)
         for s in historical_data["top_services"]:
-            known_numbers.add(str(s["amount"]))
+            n = normalize(s["amount"])
+            if n is not None:
+                known_numbers.add(n)
 
     if forecast_data:
-        known_numbers.add(str(forecast_data["predicted_total"]))
-        known_numbers.add(str(forecast_data["model_confidence"]["mae"]))
+        n = normalize(forecast_data["predicted_total"])
+        if n is not None:
+            known_numbers.add(n)
+        n = normalize(forecast_data["model_confidence"]["mae"])
+        if n is not None:
+            known_numbers.add(n)
 
-    import re
-    numbers_in_draft = re.findall(r"\d+\.?\d*", draft)
+    # Remove commas from the draft before extracting numbers, so
+    # "4,287.98" is read as one number, not split into "4" and "287.98".
+    cleaned_draft = draft.replace(",", "")
+    numbers_in_draft = re.findall(r"\d+\.?\d*", cleaned_draft)
 
-    unverified = [
-        n for n in numbers_in_draft
-        if n not in known_numbers and float(n) > 1
-    ]
+    unverified = []
+    for raw in numbers_in_draft:
+        value = normalize(raw)
+        if value is None or value <= 1:
+            continue
+        # Allow small rounding differences (e.g. 16.19 vs 16.2)
+        if not any(abs(value - known) < 0.1 for known in known_numbers):
+            unverified.append(raw)
 
     if unverified:
         return {
