@@ -9,7 +9,6 @@ client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 def route_question(question):
     """
     Agent 1 (Router): decides what data is needed to answer the question.
-    Returns a dict like {"needs_historical": true, "needs_forecast": false}.
     """
     prompt = f"""You are a routing assistant. Given a user's question about
 cloud costs, decide what data categories are needed to answer it.
@@ -88,12 +87,14 @@ Answer in 2-4 sentences, citing specific numbers from the data above.
 
 def verify_answer(draft, historical_data, forecast_data):
     """
-    Agent 3 (Verifier): checks the drafted answer against the real source
-    data. Numbers are compared after normalizing formatting differences
-    (commas, trailing zeros) so legitimate correct figures aren't
-    incorrectly flagged just because of cosmetic formatting.
+    Agent 3 (Verifier): checks the drafted answer's monetary figures
+    against real source data. Day-counts (e.g. "30 days", "90 days of
+    history") are legitimate non-monetary numbers that naturally appear
+    in answers and are explicitly allowed, since they describe the time
+    period rather than a cost figure that could be hallucinated.
     """
     known_numbers = set()
+    allowed_day_counts = set()
 
     def normalize(value):
         try:
@@ -117,9 +118,9 @@ def verify_answer(draft, historical_data, forecast_data):
         n = normalize(forecast_data["model_confidence"]["mae"])
         if n is not None:
             known_numbers.add(n)
+        allowed_day_counts.add(30)  # forecast window
+        allowed_day_counts.add(forecast_data["model_confidence"]["based_on_days"])
 
-    # Remove commas from the draft before extracting numbers, so
-    # "4,287.98" is read as one number, not split into "4" and "287.98".
     cleaned_draft = draft.replace(",", "")
     numbers_in_draft = re.findall(r"\d+\.?\d*", cleaned_draft)
 
@@ -128,9 +129,11 @@ def verify_answer(draft, historical_data, forecast_data):
         value = normalize(raw)
         if value is None or value <= 1:
             continue
-        # Allow small rounding differences (e.g. 16.19 vs 16.2)
-        if not any(abs(value - known) < 0.1 for known in known_numbers):
-            unverified.append(raw)
+        if value in allowed_day_counts:
+            continue
+        if any(abs(value - known) < 0.1 for known in known_numbers):
+            continue
+        unverified.append(raw)
 
     if unverified:
         return {
