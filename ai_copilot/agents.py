@@ -122,7 +122,7 @@ def verify_answer(draft, historical_data, forecast_data):
         allowed_day_counts.add(forecast_data["model_confidence"]["based_on_days"])
 
     cleaned_draft = draft.replace(",", "")
-    numbers_in_draft = re.findall(r"\d+\.?\d*", cleaned_draft)
+    numbers_in_draft = re.findall(r"(?<![A-Za-z])\d+\.?\d*", cleaned_draft)
 
     unverified = []
     for raw in numbers_in_draft:
