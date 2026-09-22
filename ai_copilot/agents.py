@@ -106,8 +106,14 @@ def verify_answer(draft, historical_data, forecast_data):
         n = normalize(historical_data["total_cost"])
         if n is not None:
             known_numbers.add(n)
+
         for s in historical_data["top_services"]:
             n = normalize(s["amount"])
+            if n is not None:
+                known_numbers.add(n)
+
+        for t in historical_data.get("trend", []):
+            n = normalize(t["amount"])
             if n is not None:
                 known_numbers.add(n)
 
@@ -118,7 +124,7 @@ def verify_answer(draft, historical_data, forecast_data):
         n = normalize(forecast_data["model_confidence"]["mae"])
         if n is not None:
             known_numbers.add(n)
-        allowed_day_counts.add(30)  # forecast window
+        allowed_day_counts.add(30)
         allowed_day_counts.add(forecast_data["model_confidence"]["based_on_days"])
 
     cleaned_draft = draft.replace(",", "")
