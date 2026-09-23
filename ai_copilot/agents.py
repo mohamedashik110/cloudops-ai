@@ -132,6 +132,8 @@ def verify_answer(draft, historical_data, forecast_data):
 
     unverified = []
     for raw in numbers_in_draft:
+        if raw.isdigit() and len(raw) == 4 and 1900 <= int(raw) <= 2100:
+            continue
         value = normalize(raw)
         if value is None or value <= 1:
             continue
