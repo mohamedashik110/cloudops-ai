@@ -6,6 +6,7 @@ A full-stack, production-deployed SaaS platform that helps organizations monitor
 **Repository:** https://github.com/mohamedashik110/cloudops-ai
 
 ## Try it yourself
+
 URL: https://cloudops-ai.duckdns.org
 Username: demo
 Password: mohamed0902
@@ -16,19 +17,19 @@ This is a read-only (Viewer) demo account - safe to explore. All data belongs to
 
 ## What This Project Does
 
-CloudOps AI solves a real problem: companies using AWS often have no clear visibility into their cloud spend, no way to predict next month bill, and no easy way to ask "why did our costs go up?" without manually digging through dashboards.
+CloudOps AI solves a real problem: companies using AWS often have no clear visibility into their cloud spend, no way to predict next month's bill, and no easy way to ask "why did our costs go up?" without manually digging through dashboards.
 
 This platform provides:
 - Secure, multi-tenant cost tracking - connect an AWS account, see real cost data, isolated per organization
-- Role-based access control - Admin, Manager, and Viewer roles with different permissions, enforced on both backend and frontend
+- Role-based access control - Admin, Manager, and Viewer roles, enforced on both backend and frontend
 - ML-based cost forecasting - predicts next 30 days of spend, with honest, validated accuracy metrics
-- A GenAI Copilot - ask questions in plain English, get answers grounded in real cost data, with citations
+- A multi-agent GenAI Copilot - ask questions in plain English, get answers grounded in real cost and forecast data, with an automated verification step checking every cited number
 
 ## Tech Stack
 
 **Backend:** Python, Django, Django REST Framework, PostgreSQL + pgvector, Redis, Celery, JWT auth
 
-**AI / ML:** scikit-learn, pandas, numpy, Google Gemini API, custom RAG-style grounding
+**AI / ML:** scikit-learn, pandas, numpy, Google Gemini API, custom multi-agent RAG pipeline
 
 **Frontend:** React (Vite), React Router, Axios, Recharts, Lucide React
 
@@ -45,12 +46,26 @@ This platform provides:
 
 - Features: 7-day rolling average, day-of-week seasonality, trend index
 - Chronological train/test split (not random) - avoids data leakage
-- Validated with MAE, typically $11-16 per day against average daily spend of $60-150
+- Validated with MAE, typically -16 per day against average daily spend of -150
 - Forecasts saved to a history table for future predicted-vs-actual comparison
 
-## GenAI Copilot: Grounded, Not Guessing
+## GenAI Copilot: A Real Multi-Agent Pipeline
 
-The Copilot retrieves real cost data before generating any answer, and is explicitly instructed to say "I do not have that information" rather than fabricate numbers. Tested against real, causal, and out-of-range questions - it only ever cites real numbers or admits it does not know.
+Rather than a single LLM call, the Copilot is built as three cooperating agents:
+
+1. **Router** - a small, focused LLM call that decides what data the question actually needs (historical spend, forecast, or both) before anything else happens
+2. **Analyst** - drafts a natural-language answer using only the data the Router said was needed
+3. **Verifier** - a deterministic, non-LLM check that extracts every number the Analyst cited and confirms it genuinely appears in the real source data, flagging the answer if it doesn't
+
+This was tested against 12 varied questions, including:
+- Direct questions it can answer ("what's our total cost?", "which service costs the most?") - answered accurately, with correct figures
+- Forward-looking questions ("what will we spend next month?") - correctly pulls and cites the ML forecast, including its error margin
+- Causal questions the data can't explain ("why did costs increase?") - correctly declines to speculate
+- Out-of-range questions ("what did we spend in 2020?") - correctly states the data doesn't cover that period
+- Judgment-based questions ("should I switch from EC2 to Lambda?") - cites the real relevant numbers but correctly declines to make a recommendation the data can't support
+- Completely unrelated questions ("what's the weather today?") - correctly declines, no data fabricated
+
+Building the Verifier surfaced real, subtle challenges worth noting: distinguishing cost figures from incidental numbers like day-counts, calendar years, and digits embedded in service names (the "3" in "S3", the "2" in "EC2") required iterative refinement - a genuine lesson in the gap between "looks correct" and "is provably correct."
 
 ## Project Phases
 
@@ -58,10 +73,12 @@ The Copilot retrieves real cost data before generating any answer, and is explic
 2. Cloud Integration - Real AWS Cost Explorer integration via boto3, async Celery ingestion, later upgraded to STS AssumeRole
 3. Analytics - Aggregate cost queries, Redis-cached summaries, CSV export
 4. ML Forecasting - Feature engineering, chronological validation, 30-day predictions
-5. GenAI Copilot - Gemini-powered chat, grounded in real data, hallucination-tested
+5. GenAI Copilot - Multi-agent pipeline (Router, Analyst, Verifier), grounded in real data, hallucination-tested
 6. Production Deployment - Docker, AWS EC2, Nginx, HTTPS, CI/CD, full-stack React frontend
 
 ## Local Setup
+
+\\\
 git clone https://github.com/mohamedashik110/cloudops-ai.git
 cd cloudops-ai
 python -m venv venv
@@ -75,18 +92,24 @@ python manage.py runserver 8080
 cd frontend
 npm install
 npm run dev
+\\\
 
 ## Running Tests
 
-17 automated tests covering authentication, RBAC, multi-tenant isolation, analytics correctness, ML forecasting, and Copilot behavior. Runs automatically on every push via GitHub Actions.
+\\\
+python manage.py test
+\\\
+
+17 automated tests covering authentication, RBAC, multi-tenant isolation, analytics correctness, ML forecasting (including edge cases), and Copilot behavior. Runs automatically on every push via GitHub Actions.
 
 ## What I Would Add With More Time
 
 - Anomaly detection on cost/usage spikes
 - Idle resource detection for cost savings
 - Multi-cloud support (GCP, Azure)
-- Managed database (RDS)
-- Connect the Copilot to ML forecast data for forward-looking questions
+- A managed database (RDS) instead of a self-hosted Postgres container
+- Streaming Copilot responses instead of waiting for the full answer
+- Conversation memory so the Copilot can handle multi-turn follow-up questions
 
 ## Author
 
